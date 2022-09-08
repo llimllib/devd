@@ -211,6 +211,11 @@ func (dd *Devd) WrapHandler(log termlog.TermLog, next httpctx.Handler) http.Hand
 			if requestMethod != "" {
 				w.Header().Set("Access-Control-Allow-Methods", requestMethod)
 			}
+
+			// required for SharedArrayBuffer usage
+			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
+			w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+			w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		}
 		flusher, _ := w.(http.Flusher)
 		next.ServeHTTPContext(
