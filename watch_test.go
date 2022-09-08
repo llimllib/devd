@@ -28,9 +28,13 @@ func TestRouteWatch(t *testing.T) {
 	defer os.RemoveAll(tmpFolder)
 
 	// Ensure that using . for the path works:
-	os.Chdir(tmpFolder)
+	if err := os.Chdir(tmpFolder); err != nil {
+		t.Errorf("unable to change into %s", tmpFolder)
+	}
 	routes := make(RouteCollection)
-	routes.Add(".", nil)
+	if err := routes.Add(".", nil); err != nil {
+		t.Errorf("unable to add . route")
+	}
 
 	changedFiles := make(map[string]int)
 	ch := make(chan []string, 1024)

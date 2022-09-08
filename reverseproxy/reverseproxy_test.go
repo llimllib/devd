@@ -46,7 +46,9 @@ func TestReverseProxy(t *testing.T) {
 		w.Header().Set("X-Foo", "bar")
 		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
-		w.Write([]byte(backendResponse))
+		if _, err := w.Write([]byte(backendResponse)); err != nil {
+			t.Errorf("unable to write response")
+		}
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -96,7 +98,9 @@ func TestXForwardedFor(t *testing.T) {
 			t.Errorf("X-Forwarded-For didn't contain prior data")
 		}
 		w.WriteHeader(backendStatus)
-		w.Write([]byte(backendResponse))
+		if _, err := w.Write([]byte(backendResponse)); err != nil {
+			t.Errorf("unable to write response")
+		}
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -139,7 +143,9 @@ var proxyQueryTests = []struct {
 func TestReverseProxyQuery(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Got-Query", r.URL.RawQuery)
-		w.Write([]byte("hi"))
+		if _, err := w.Write([]byte("hi")); err != nil {
+			t.Errorf("unable to write hi")
+		}
 	}))
 	defer backend.Close()
 
@@ -165,8 +171,10 @@ func TestReverseProxyQuery(t *testing.T) {
 
 func TestReverseProxyFlushInterval(t *testing.T) {
 	const expected = "hi"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(expected))
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if _, err := w.Write([]byte(expected)); err != nil {
+			t.Errorf("unable to write %s", expected)
+		}
 	}))
 	defer backend.Close()
 

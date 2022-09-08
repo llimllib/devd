@@ -106,11 +106,13 @@ func TestNil(t *testing.T) {
 	src := bytes.NewBuffer([]byte(val))
 	injector, err := ci.Sniff(src, "")
 	if injector.Found() || err != nil {
-		t.Error("Unexpected")
+		t.Error("unexpected")
 	}
 	dst := bytes.NewBuffer(make([]byte, 0))
-	injector.Copy(dst)
+	if _, err := injector.Copy(dst); err != nil {
+		t.Error("error copying")
+	}
 	if dst.String() != val {
-		t.Errorf("Expected %s, got %s", val, dst.String())
+		t.Errorf("expected %s, got %s", val, dst.String())
 	}
 }
