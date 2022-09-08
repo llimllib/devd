@@ -24,10 +24,10 @@ import (
 	"time"
 
 	rice "github.com/GeertJohan/go.rice"
+	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/ricetemp"
 	"github.com/llimllib/devd/routespec"
-	"github.com/cortesi/termlog"
 )
 
 // ServeFile replies to the request with the contents of the named file or directory.
@@ -389,23 +389,6 @@ func TestServeFileFromCWD(t *testing.T) {
 	}
 }
 
-func TestServeFileWithContentEncoding(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Encoding", "foo")
-		ServeFile(w, r, "testdata/file")
-	}))
-	defer ts.Close()
-	resp, err := http.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = resp.Body.Close()
-	if g, e := resp.ContentLength, int64(-1); g != e {
-		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
-	}
-}
-
 func TestServeIndexHtml(t *testing.T) {
 	defer afterTest(t)
 	const want = "index.html says hello"
@@ -583,7 +566,6 @@ func TestNotFoundOverride(t *testing.T) {
 	if res.StatusCode != 404 {
 		t.Error("Expected to find over-ride file.")
 	}
-
 }
 
 func TestDirectoryIfNotModified(t *testing.T) {
