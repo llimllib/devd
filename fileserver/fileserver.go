@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
@@ -20,9 +21,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/routespec"
-	"github.com/cortesi/termlog"
 )
 
 const sniffLen = 512
@@ -115,7 +116,7 @@ func serveContent(ci inject.CopyInject, w http.ResponseWriter, r *http.Request, 
 			var buf [sniffLen]byte
 			n, _ := io.ReadFull(content, buf[:])
 			ctype = http.DetectContentType(buf[:n])
-			_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
+			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
 			if err != nil {
 				http.Error(w, "seeker can't seek", http.StatusInternalServerError)
 				return err
@@ -301,10 +302,7 @@ func _getType(ext string) string {
 func matchTypes(spec string, req string) bool {
 	smime := _getType(path.Ext(spec))
 	rmime := _getType(path.Ext(req))
-	if smime == rmime {
-		return true
-	}
-	return false
+	return smime == rmime
 }
 
 func (fserver *FileServer) serve404(w http.ResponseWriter) error {
@@ -365,7 +363,8 @@ func (fserver *FileServer) notFound(
 				return func(w http.ResponseWriter, r *http.Request) {
 					if matchTypes(nfr.Value, r.URL.Path) {
 						for _, pth := range notFoundSearchPaths(name, nfr.Value) {
-							next, err := fserver.serveNotFoundFile(w, r, pth)
+							var next bool
+							next, err = fserver.serveNotFoundFile(w, r, pth)
 							if err != nil {
 								logger.Shout("Unable to serve not-found override: %s", err)
 							}
@@ -387,7 +386,8 @@ func (fserver *FileServer) notFound(
 			"/",
 			func(response http.ResponseWriter, request *http.Request) {
 				if dir != nil {
-					d, err := (*dir).Stat()
+					var d fs.FileInfo
+					d, err = (*dir).Stat()
 					if err != nil {
 						logger.Shout("Internal error: %s", err)
 						return
@@ -433,7 +433,7 @@ func (fserver *FileServer) serveNotFoundFile(
 	sizeFunc := func() (int64, error) { return d.Size(), nil }
 	err = serveContent(fserver.Inject, w, r, d.Name(), d.ModTime(), sizeFunc, f)
 	if err != nil {
-		return false, fmt.Errorf("Error serving file: %s", err)
+		return false, fmt.Errorf("error serving file: %s", err)
 	}
 	return false, nil
 }
@@ -462,7 +462,7 @@ func (fserver *FileServer) serveFile(
 	f, err := fserver.Root.Open(name)
 	if err != nil {
 		logger.WarnAs("debug", "debug fileserver: %s", err)
-		if err := fserver.notFound(logger, w, r, name, nil); err != nil {
+		if err = fserver.notFound(logger, w, r, name, nil); err != nil {
 			logger.Shout("Internal error: %s", err)
 		}
 		return
@@ -472,7 +472,7 @@ func (fserver *FileServer) serveFile(
 	d, err1 := f.Stat()
 	if err1 != nil {
 		logger.WarnAs("debug", "debug fileserver: %s", err)
-		if err := fserver.notFound(logger, w, r, name, nil); err != nil {
+		if err = fserver.notFound(logger, w, r, name, nil); err != nil {
 			logger.Shout("Internal error: %s", err)
 		}
 		return
@@ -498,10 +498,12 @@ func (fserver *FileServer) serveFile(
 	// use contents of index.html for directory, if present
 	if d.IsDir() {
 		index := name + indexPage
-		ff, err := fserver.Root.Open(index)
+		var ff http.File
+		ff, err = fserver.Root.Open(index)
 		if err == nil {
 			defer func() { _ = ff.Close() }()
-			dd, err := ff.Stat()
+			var dd fs.FileInfo
+			dd, err = ff.Stat()
 			if err == nil {
 				name = index
 				d = dd
@@ -512,7 +514,7 @@ func (fserver *FileServer) serveFile(
 
 	// Still a directory? (we didn't find an index.html file)
 	if d.IsDir() {
-		if err := fserver.notFound(logger, w, r, name, &f); err != nil {
+		if err = fserver.notFound(logger, w, r, name, &f); err != nil {
 			logger.Shout("Internal error: %s", err)
 		}
 		return

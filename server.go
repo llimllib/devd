@@ -18,13 +18,13 @@ import (
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/goji/httpauth"
 
+	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/httpctx"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/livereload"
 	"github.com/llimllib/devd/ricetemp"
 	"github.com/llimllib/devd/slowdown"
 	"github.com/llimllib/devd/timer"
-	"github.com/cortesi/termlog"
 )
 
 const (
@@ -49,7 +49,7 @@ func pickPort(addr string, low int, high int, tls bool) (net.Listener, error) {
 			return hl, nil
 		}
 	}
-	return nil, fmt.Errorf("Could not find open port.")
+	return nil, fmt.Errorf("could not find open port")
 }
 
 func getTLSConfig(path string) (t *tls.Config, err error) {
@@ -126,7 +126,7 @@ type Credentials struct {
 func CredentialsFromSpec(spec string) (*Credentials, error) {
 	parts := strings.SplitN(spec, ":", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return nil, fmt.Errorf("Invalid credential spec: %s", spec)
+		return nil, fmt.Errorf("invalid credential spec: %s", spec)
 	}
 	return &Credentials{parts[0], parts[1]}, nil
 }
@@ -236,7 +236,7 @@ func (dd *Devd) AddRoutes(specs []string, notfound []string) error {
 	for _, s := range specs {
 		err := dd.Routes.Add(s, notfound)
 		if err != nil {
-			return fmt.Errorf("Invalid route specification: %s", err)
+			return fmt.Errorf("invalid route specification: %s", err)
 		}
 	}
 	return nil
@@ -244,7 +244,7 @@ func (dd *Devd) AddRoutes(specs []string, notfound []string) error {
 
 // AddIgnores adds log ignore patterns to the server
 func (dd *Devd) AddIgnores(specs []string) error {
-	dd.IgnoreLogs = make([]*regexp.Regexp, 0, 0)
+	dd.IgnoreLogs = make([]*regexp.Regexp, 0)
 	for _, expr := range specs {
 		v, err := regexp.Compile(expr)
 		if err != nil {
@@ -259,7 +259,7 @@ func (dd *Devd) AddIgnores(specs []string) error {
 // when we have no matching route for a request. This also means it's not
 // useful to inject the livereload paraphernalia here.
 func HandleNotFound(templates *template.Template) httpctx.Handler {
-	return httpctx.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	return httpctx.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		err := templates.Lookup("404.html").Execute(w, nil)
 		if err != nil {
@@ -295,7 +295,7 @@ func (dd *Devd) Router(logger termlog.TermLog, templates *template.Template) (ht
 		mux.Handle(livereload.ScriptPath, http.HandlerFunc(lr.ServeScript))
 		seen := make(map[string]bool)
 		for _, route := range dd.Routes {
-			if _, ok := seen[route.Host]; route.Host != "" && ok == false {
+			if _, ok := seen[route.Host]; route.Host != "" && !ok {
 				mux.Handle(route.Host+livereload.EndpointPath, lr)
 				mux.Handle(
 					route.Host+livereload.ScriptPath,
@@ -307,13 +307,13 @@ func (dd *Devd) Router(logger termlog.TermLog, templates *template.Template) (ht
 		if dd.LivereloadRoutes {
 			err := WatchRoutes(dd.Routes, lr, dd.Excludes, logger)
 			if err != nil {
-				return nil, fmt.Errorf("Could not watch routes for livereload: %s", err)
+				return nil, fmt.Errorf("could not watch routes for livereload: %s", err)
 			}
 		}
 		if len(dd.WatchPaths) > 0 {
 			err := WatchPaths(dd.WatchPaths, dd.Excludes, lr, logger)
 			if err != nil {
-				return nil, fmt.Errorf("Could not watch path for livereload: %s", err)
+				return nil, fmt.Errorf("could not watch path for livereload: %s", err)
 			}
 		}
 		dd.lrserver = lr
@@ -324,7 +324,7 @@ func (dd *Devd) Router(logger termlog.TermLog, templates *template.Template) (ht
 			dd.WrapHandler(logger, HandleNotFound(templates)),
 		)
 	}
-	var h = http.Handler(mux)
+	h := http.Handler(mux)
 	if dd.Credentials != nil {
 		h = httpauth.SimpleBasicAuth(
 			dd.Credentials.username, dd.Credentials.password,
@@ -338,7 +338,7 @@ func (dd *Devd) Router(logger termlog.TermLog, templates *template.Template) (ht
 func (dd *Devd) Serve(address string, port int, certFile string, logger termlog.TermLog, callback func(string)) error {
 	templates, err := ricetemp.MakeTemplates(rice.MustFindBox("templates"))
 	if err != nil {
-		return fmt.Errorf("Error loading templates: %s", err)
+		return fmt.Errorf("error loading templates: %s", err)
 	}
 	mux, err := dd.Router(logger, templates)
 	if err != nil {
@@ -349,7 +349,7 @@ func (dd *Devd) Serve(address string, port int, certFile string, logger termlog.
 	if certFile != "" {
 		tlsConfig, err = getTLSConfig(certFile)
 		if err != nil {
-			return fmt.Errorf("Could not load certs: %s", err)
+			return fmt.Errorf("could not load certs: %s", err)
 		}
 		tlsEnabled = true
 	}

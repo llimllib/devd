@@ -91,7 +91,7 @@ var upgrader = websocket.Upgrader{
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)

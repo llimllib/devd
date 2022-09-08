@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/llimllib/devd/timer"
 	"github.com/cortesi/termlog"
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
+	"github.com/llimllib/devd/timer"
 )
 
 // ResponseLogWriter is a ResponseWriter that logs
@@ -41,7 +41,7 @@ func (rl *ResponseLogWriter) logCode(code int, status string) {
 		if err != nil {
 			rl.Log.Warn("Invalid content-length header")
 		} else if cli > 0 {
-			clstr = fmt.Sprintf("%s", humanize.Bytes(uint64(cli)))
+			clstr = humanize.Bytes(uint64(cli))
 		}
 	}
 	rl.Log.Say("<- %s %s", codestr, clstr)
