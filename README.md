@@ -1,8 +1,3 @@
-
-[![Travis Build Status](https://travis-ci.org/llimllib/devd.svg?branch=master)](https://travis-ci.org/llimllib/devd)
-
-
-
 # devd: a local webserver for developers
 
 ![screenshot](docs/devd-terminal.png "devd in action")
