@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cortesi/devd/livereload"
+	"github.com/llimllib/devd/livereload"
 	"github.com/cortesi/moddwatch"
 	"github.com/cortesi/termlog"
 )

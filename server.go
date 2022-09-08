@@ -18,12 +18,12 @@ import (
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/goji/httpauth"
 
-	"github.com/cortesi/devd/httpctx"
-	"github.com/cortesi/devd/inject"
-	"github.com/cortesi/devd/livereload"
-	"github.com/cortesi/devd/ricetemp"
-	"github.com/cortesi/devd/slowdown"
-	"github.com/cortesi/devd/timer"
+	"github.com/llimllib/devd/httpctx"
+	"github.com/llimllib/devd/inject"
+	"github.com/llimllib/devd/livereload"
+	"github.com/llimllib/devd/ricetemp"
+	"github.com/llimllib/devd/slowdown"
+	"github.com/llimllib/devd/timer"
 	"github.com/cortesi/termlog"
 )
 

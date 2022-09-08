@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/GeertJohan/go.rice v1.0.0
-	github.com/cortesi/devd v0.0.0-20200427000907-c1a3bfba27d8
 	github.com/cortesi/moddwatch v0.0.0-20190809041828-239a95c12d84
 	github.com/cortesi/termlog v0.0.0-20190809035425-7871d363854c
 	github.com/dustin/go-humanize v1.0.0
