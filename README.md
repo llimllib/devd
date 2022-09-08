@@ -1,5 +1,7 @@
 # devd: a local webserver for developers
 
+This is an experimental branch forked from [cortesi/devd](https://github.com/cortesi/devd)
+
 ![screenshot](docs/devd-terminal.png "devd in action")
 
 # Install

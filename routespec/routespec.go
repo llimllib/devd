@@ -17,17 +17,17 @@ func checkURL(s string) (isURL bool, err error) {
 		return
 	}
 
-	switch {
-	case parsed.Scheme == "": // No scheme means local file system
+	switch parsed.Scheme {
+	case "": // No scheme means local file system
 		isURL = false
-	case parsed.Scheme == "http", parsed.Scheme == "https":
+	case "http", "https":
 		isURL = true
-	case parsed.Scheme == "ws":
-		err = fmt.Errorf("Websocket protocol not supported: %s", s)
+	case "ws":
+		err = fmt.Errorf("websocket protocol not supported: %s", s)
 	default:
 		// A route of "localhost:1234/abc" without the "http" or "https" triggers this case.
 		// Unfortunately a route of "localhost/abc" just looks like a file and is not caught here.
-		err = fmt.Errorf("Unknown scheme '%s': did you mean http or https?: %s", parsed.Scheme, s)
+		err = fmt.Errorf("unknown scheme '%s': did you mean http or https?: %s", parsed.Scheme, s)
 	}
 	return
 }
@@ -58,7 +58,7 @@ func ParseRouteSpec(s string) (*RouteSpec, error) {
 		value = seq[1]
 	}
 	if path == "" || value == "" {
-		return nil, errors.New("Invalid specification")
+		return nil, errors.New("invalid specification")
 	}
 	if path[0] != '/' {
 		seq := strings.SplitN(path, "/", 2)

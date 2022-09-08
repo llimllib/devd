@@ -7,7 +7,7 @@
 package reverseproxy
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -78,7 +78,7 @@ func TestReverseProxy(t *testing.T) {
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
 	}
-	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	bodyBytes, _ := io.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -119,7 +119,7 @@ func TestXForwardedFor(t *testing.T) {
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	bodyBytes, _ := io.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -192,7 +192,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 	defer res.Body.Close()
-	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
+	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
 	}
 
