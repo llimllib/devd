@@ -26,7 +26,9 @@ type slowReader struct {
 func (sr *slowReader) Read(b []byte) (n int, err error) {
 	read := 0
 	for read < len(b) {
-		sr.limiter.WaitN(context.Background(), int(blockSize))
+		if err := sr.limiter.WaitN(context.Background(), int(blockSize)); err != nil {
+			return read, err
+		}
 		upper := min(int64(read)+blockSize, int64(len(b)))
 		slice := b[read:upper]
 		n, err := sr.reader.Read(slice)
@@ -46,8 +48,9 @@ type slowWriter struct {
 func (w *slowWriter) Write(b []byte) (n int, err error) {
 	written := 0
 	for written < len(b) {
-		w.limiter.WaitN(context.Background(), int(blockSize))
-
+		if err := w.limiter.WaitN(context.Background(), int(blockSize)); err != nil {
+			return written, err
+		}
 		upper := min(int64(written)+blockSize, int64(len(b)))
 		n, err := w.writer.Write(b[written:upper])
 		written += n
