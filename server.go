@@ -26,7 +26,6 @@ import (
 	"github.com/llimllib/devd/timer"
 )
 
-
 const (
 	// Version is the current version of devd
 	Version  = "0.9"
@@ -76,7 +75,8 @@ func revertOriginalHost(r *http.Request) {
 }
 
 // We can remove the mangling once this is fixed:
-// 		https://github.com/golang/go/issues/10463
+//
+//	https://github.com/golang/go/issues/10463
 func hostPortStrip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.Host)

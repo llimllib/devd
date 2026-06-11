@@ -16,9 +16,9 @@ import (
 
 	"context"
 
-	"github.com/llimllib/devd/inject"
 	"github.com/cortesi/termlog"
 	humanize "github.com/dustin/go-humanize"
+	"github.com/llimllib/devd/inject"
 )
 
 // onExitFlushLoop is a callback set by tests to detect the state of the

@@ -8,6 +8,15 @@ install: $(source)
 test:
 	go test ./...
 
+.PHONY: lint
+lint:
+	@if [ -n "$$(go fmt ./...)" ]; then \
+		echo "Error: The following files were reformatted. Please commit the changes:"; \
+		go fmt ./...; \
+		exit 1; \
+	fi
+	golangci-lint run
+
 .PHONY: check
 check:
 	@# install required tools if not found. Should pin versions if the latest

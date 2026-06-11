@@ -16,7 +16,7 @@ import (
 func interestingGoroutines() (gs []string) {
 	buf := make([]byte, 2<<20)
 	buf = buf[:runtime.Stack(buf, true)]
-	for _, g := range strings.Split(string(buf), "\n\n") {
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
 		sl := strings.SplitN(g, "\n", 2)
 		if len(sl) != 2 {
 			continue
@@ -46,15 +46,15 @@ func afterTest(t *testing.T) {
 	}
 	var bad string
 	badSubstring := map[string]string{
-		").readLoop(":                                  "a Transport",
-		").writeLoop(":                                 "a Transport",
+		").readLoop(":  "a Transport",
+		").writeLoop(": "a Transport",
 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
-		"timeoutHandler":                               "a TimeoutHandler",
-		"net.(*netFD).connect(":                        "a timing out dial",
-		").noteClientGone(":                            "a closenotifier sender",
+		"timeoutHandler":        "a TimeoutHandler",
+		"net.(*netFD).connect(": "a timing out dial",
+		").noteClientGone(":     "a closenotifier sender",
 	}
 	var stacks string
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		bad = ""
 		stacks = strings.Join(interestingGoroutines(), "\n\n")
 		for substr, what := range badSubstring {
