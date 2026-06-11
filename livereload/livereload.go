@@ -4,13 +4,13 @@ package livereload
 
 import (
 	"embed"
+	"github.com/cortesi/termlog"
+	"github.com/gorilla/websocket"
+	"github.com/llimllib/devd/inject"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
-	"github.com/llimllib/devd/inject"
-	"github.com/cortesi/termlog"
-	"github.com/gorilla/websocket"
 )
 
 //go:embed static

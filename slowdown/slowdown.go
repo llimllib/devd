@@ -26,10 +26,7 @@ func (sr *slowReader) Read(b []byte) (n int, err error) {
 	read := 0
 	for read < len(b) {
 		sr.bucket.Wait(blockSize)
-		upper := int64(read) + blockSize
-		if upper > int64(len(b)) {
-			upper = int64(len(b))
-		}
+		upper := min(int64(read)+blockSize, int64(len(b)))
 		slice := b[read:upper]
 		n, err := sr.reader.Read(slice)
 		read += n
@@ -50,10 +47,7 @@ func (w *slowWriter) Write(b []byte) (n int, err error) {
 	for written < len(b) {
 		w.bucket.Wait(blockSize)
 
-		upper := int64(written) + blockSize
-		if upper > int64(len(b)) {
-			upper = int64(len(b))
-		}
+		upper := min(int64(written)+blockSize, int64(len(b)))
 		n, err := w.writer.Write(b[written:upper])
 		written += n
 		if err != nil {

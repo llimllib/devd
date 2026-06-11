@@ -74,13 +74,6 @@ func (injector *realInjector) Found() bool {
 	return injector.found
 }
 
-func min(a int, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
-
 // Sniff reads the first SniffLen bytes of the source, and checks for the
 // marker. Returns an Injector instance.
 func (ci *CopyInject) Sniff(src io.Reader, contentType string) (Injector, error) {
@@ -113,7 +106,7 @@ func (ci *CopyInject) Sniff(src io.Reader, contentType string) (Injector, error)
 }
 
 // ServeTemplate renders and serves a template to an http.ResponseWriter
-func (ci *CopyInject) ServeTemplate(statuscode int, w http.ResponseWriter, t *template.Template, data interface{}) error {
+func (ci *CopyInject) ServeTemplate(statuscode int, w http.ResponseWriter, t *template.Template, data any) error {
 	buff := bytes.NewBuffer(make([]byte, 0))
 	err := t.Execute(buff, data)
 	if err != nil {

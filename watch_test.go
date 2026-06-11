@@ -75,7 +75,7 @@ func TestRouteWatch(t *testing.T) {
 	addTempFile(t, tmpFolder, "c.txt", "bar\n")
 	addTempFile(t, tmpFolder, "another.file.txt", "bar\n")
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		lck.Lock()
 		if len(changedFiles) >= 3 {
 			lck.Unlock()

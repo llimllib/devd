@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/llimllib/devd"
 	"github.com/cortesi/termlog"
+	"github.com/llimllib/devd"
 	"github.com/mitchellh/go-homedir"
 	"github.com/toqueteos/webbrowser"
 	"gopkg.in/alecthomas/kingpin.v2"
