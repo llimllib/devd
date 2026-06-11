@@ -1,8 +1,9 @@
 package devd
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -14,7 +15,7 @@ import (
 
 // GenerateCert generates a self-signed certificate bundle for devd
 func GenerateCert(dst string) error {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func GenerateCert(dst string) error {
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
 
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
@@ -71,11 +72,15 @@ func GenerateCert(dst string) error {
 	if err != nil {
 		return fmt.Errorf("could not open %s for writing: %s", dst, err)
 	}
+	keyBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return fmt.Errorf("could not marshal EC private key: %s", err)
+	}
 	err = pem.Encode(
 		keyOut,
 		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(priv),
+			Type:  "EC PRIVATE KEY",
+			Bytes: keyBytes,
 		},
 	)
 	if err != nil {
