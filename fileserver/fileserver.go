@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"context"
-
 	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/routespec"
@@ -241,13 +239,7 @@ type FileServer struct {
 }
 
 func (fserver *FileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fserver.ServeHTTPContext(context.Background(), w, r)
-}
-
-// ServeHTTPContext is like ServeHTTP, but with added context
-func (fserver *FileServer) ServeHTTPContext(
-	ctx context.Context, w http.ResponseWriter, r *http.Request,
-) {
+	ctx := r.Context()
 	logger := termlog.FromContext(ctx)
 	logger.SayAs("debug", "debug fileserver: serving with FileServer...")
 

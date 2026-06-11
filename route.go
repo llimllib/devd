@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/llimllib/devd/fileserver"
-	"github.com/llimllib/devd/httpctx"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/reverseproxy"
 	"github.com/llimllib/devd/routespec"
@@ -19,21 +18,21 @@ import (
 // Endpoint is the destination of a Route - either on the filesystem or
 // forwarding to another URL
 type endpoint interface {
-	Handler(prefix string, templates *template.Template, ci inject.CopyInject) httpctx.Handler
+	Handler(prefix string, templates *template.Template, ci inject.CopyInject) http.Handler
 	String() string
 }
 
 // An endpoint that forwards to an upstream URL
 type forwardEndpoint url.URL
 
-func (ep forwardEndpoint) Handler(prefix string, templates *template.Template, ci inject.CopyInject) httpctx.Handler {
+func (ep forwardEndpoint) Handler(prefix string, templates *template.Template, ci inject.CopyInject) http.Handler {
 	u := url.URL(ep)
 	rp := reverseproxy.NewSingleHostReverseProxy(&u, ci)
 	rp.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	rp.FlushInterval = 200 * time.Millisecond
-	return httpctx.StripPrefix(prefix, rp)
+	return http.StripPrefix(prefix, rp)
 }
 
 func newForwardEndpoint(path string) (*forwardEndpoint, error) {
@@ -70,7 +69,7 @@ func newFilesystemEndpoint(path string, notfound []string) (*filesystemEndpoint,
 	return &filesystemEndpoint{path, rparts}, nil
 }
 
-func (ep filesystemEndpoint) Handler(prefix string, templates *template.Template, ci inject.CopyInject) httpctx.Handler {
+func (ep filesystemEndpoint) Handler(prefix string, templates *template.Template, ci inject.CopyInject) http.Handler {
 	return &fileserver.FileServer{
 		Version:        "devd " + Version,
 		Root:           http.Dir(ep.Root),

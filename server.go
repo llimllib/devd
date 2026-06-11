@@ -18,7 +18,6 @@ import (
 	"github.com/goji/httpauth"
 
 	"github.com/cortesi/termlog"
-	"github.com/llimllib/devd/httpctx"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/livereload"
 	"github.com/llimllib/devd/slowdown"
@@ -163,9 +162,9 @@ type Devd struct {
 	lrserver *livereload.Server
 }
 
-// WrapHandler wraps an httpctx.Handler in the paraphernalia needed by devd for
+// WrapHandler wraps an http.Handler in the paraphernalia needed by devd for
 // logging, latency, and so forth.
-func (dd *Devd) WrapHandler(log termlog.TermLog, next httpctx.Handler) http.Handler {
+func (dd *Devd) WrapHandler(log termlog.TermLog, next http.Handler) http.Handler {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.URL.Scheme = dd.ServingScheme
 		revertOriginalHost(r)
@@ -218,10 +217,9 @@ func (dd *Devd) WrapHandler(log termlog.TermLog, next httpctx.Handler) http.Hand
 			w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		}
 		flusher, _ := w.(http.Flusher)
-		next.ServeHTTPContext(
-			ctx,
+		next.ServeHTTP(
 			&ResponseLogWriter{Log: sublog, Resp: w, Flusher: flusher, Timer: &timr},
-			r,
+			r.WithContext(ctx),
 		)
 	})
 	return h
@@ -263,12 +261,12 @@ func (dd *Devd) AddIgnores(specs []string) error {
 // HandleNotFound handles pages not found. In particular, this handler is used
 // when we have no matching route for a request. This also means it's not
 // useful to inject the livereload paraphernalia here.
-func HandleNotFound(templates *template.Template) httpctx.Handler {
-	return httpctx.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, _ *http.Request) {
+func HandleNotFound(templates *template.Template) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		err := templates.Lookup("404.html").Execute(w, nil)
 		if err != nil {
-			logger := termlog.FromContext(ctx)
+			logger := termlog.FromContext(r.Context())
 			logger.Shout("Could not execute template: %s", err)
 		}
 	})
