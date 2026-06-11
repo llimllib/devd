@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Timer collects request and response timing information
@@ -47,14 +47,20 @@ func (t *Timer) ResponseDone() {
 	t.tsResponseDone = time.Now().UnixNano()
 }
 
+// contextKey is an unexported type for context keys in this package.
+type contextKey struct{}
+
+// timerKey is the context key for the Timer.
+var timerKey = contextKey{}
+
 // NewContext creates a new context with the timer included
 func (t *Timer) NewContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, "timer", t)
+	return context.WithValue(ctx, timerKey, t)
 }
 
-// FromContext creates a new context with the timer included
+// FromContext retrieves a Timer from the context
 func FromContext(ctx context.Context) *Timer {
-	timer, ok := ctx.Value("timer").(*Timer)
+	timer, ok := ctx.Value(timerKey).(*Timer)
 	if !ok {
 		// Return a dummy timer
 		return &Timer{}

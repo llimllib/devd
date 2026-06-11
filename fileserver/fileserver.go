@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/inject"

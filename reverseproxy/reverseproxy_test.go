@@ -164,7 +164,7 @@ func TestReverseProxyQuery(t *testing.T) {
 		if g, e := res.Header.Get("X-Got-Query"), tt.want; g != e {
 			t.Errorf("%d. got query %q; expected %q", i, g, e)
 		}
-		res.Body.Close()
+		_ = res.Body.Close()
 		frontend.Close()
 	}
 }
@@ -199,7 +199,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
 	}

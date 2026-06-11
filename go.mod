@@ -12,7 +12,6 @@ require (
 	github.com/juju/ratelimit v1.0.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/toqueteos/webbrowser v1.2.1
-	golang.org/x/net v0.56.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
@@ -24,6 +23,7 @@ require (
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/rjeczalik/notify v0.9.3 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

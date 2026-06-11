@@ -81,7 +81,7 @@ func (s *Server) run(broadcast <-chan string) {
 	defer s.Unlock()
 	for conn := range s.connections {
 		delete(s.connections, conn)
-		conn.Close()
+		_ = conn.Close()
 	}
 }
 
