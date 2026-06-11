@@ -116,10 +116,8 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-// ServeHTTPContext serves HTTP with a context
-func (p *ReverseProxy) ServeHTTPContext(
-	ctx context.Context, rw http.ResponseWriter, req *http.Request,
-) {
+func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	log := termlog.FromContext(ctx)
 	transport := p.Transport
 	if transport == nil {
@@ -190,10 +188,6 @@ func (p *ReverseProxy) ServeHTTPContext(
 	copyHeader(rw.Header(), res.Header)
 	rw.WriteHeader(res.StatusCode)
 	p.copyResponse(ctx, rw, inject)
-}
-
-func (p *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.ServeHTTPContext(context.Background(), w, r)
 }
 
 func (p *ReverseProxy) copyResponse(ctx context.Context, dst io.Writer, inject inject.Injector) {
