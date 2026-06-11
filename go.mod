@@ -10,7 +10,6 @@ require (
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/gorilla/websocket v1.5.3
 	github.com/juju/ratelimit v1.0.2
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/toqueteos/webbrowser v1.2.1
 )
 

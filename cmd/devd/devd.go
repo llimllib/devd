@@ -10,7 +10,6 @@ import (
 
 	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd"
-	"github.com/mitchellh/go-homedir"
 	"github.com/toqueteos/webbrowser"
 )
 
@@ -241,7 +240,7 @@ func main() {
 	}
 
 	if tlsFlag {
-		home, err := homedir.Dir()
+		home, err := os.UserHomeDir()
 		if err != nil {
 			fatalf("Could not get user's homedir: %s", err)
 		}
