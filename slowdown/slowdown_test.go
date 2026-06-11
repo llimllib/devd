@@ -5,14 +5,14 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/juju/ratelimit"
+	"golang.org/x/time/rate"
 )
 
 func TestWriter(t *testing.T) {
 	sizes := []int64{0, 1, capacity, blockSize, 4096, 99, 100}
 	for _, size := range sizes {
 		b := &bytes.Buffer{}
-		sw := slowWriter{b, ratelimit.NewBucketWithRate(1024*1024, capacity)}
+		sw := slowWriter{b, rate.NewLimiter(1024*1024, int(capacity))}
 
 		data := make([]byte, size)
 		_, err := rand.Read(data)
@@ -44,7 +44,7 @@ func TestReader(t *testing.T) {
 		}
 		sr := slowReader{
 			bytes.NewBuffer(src),
-			ratelimit.NewBucketWithRate(1024*1024, capacity),
+			rate.NewLimiter(1024*1024, int(capacity)),
 		}
 
 		dst := make([]byte, size)

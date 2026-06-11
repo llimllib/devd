@@ -3,11 +3,12 @@
 package slowdown
 
 import (
+	"context"
 	"io"
 	"net"
 	"time"
 
-	"github.com/juju/ratelimit"
+	"golang.org/x/time/rate"
 )
 
 // The maximum rate you should specify for readrate or writerate.If this is too
@@ -18,14 +19,14 @@ var blockSize = int64(1024)
 var capacity = int64(blockSize * 4)
 
 type slowReader struct {
-	reader io.Reader
-	bucket *ratelimit.Bucket
+	reader  io.Reader
+	limiter *rate.Limiter
 }
 
 func (sr *slowReader) Read(b []byte) (n int, err error) {
 	read := 0
 	for read < len(b) {
-		sr.bucket.Wait(blockSize)
+		sr.limiter.WaitN(context.Background(), int(blockSize))
 		upper := min(int64(read)+blockSize, int64(len(b)))
 		slice := b[read:upper]
 		n, err := sr.reader.Read(slice)
@@ -38,14 +39,14 @@ func (sr *slowReader) Read(b []byte) (n int, err error) {
 }
 
 type slowWriter struct {
-	writer io.Writer
-	bucket *ratelimit.Bucket
+	writer  io.Writer
+	limiter *rate.Limiter
 }
 
 func (w *slowWriter) Write(b []byte) (n int, err error) {
 	written := 0
 	for written < len(b) {
-		w.bucket.Wait(blockSize)
+		w.limiter.WaitN(context.Background(), int(blockSize))
 
 		upper := min(int64(written)+blockSize, int64(len(b)))
 		n, err := w.writer.Write(b[written:upper])
@@ -69,8 +70,8 @@ func newSlowConn(conn net.Conn, listener *SlowListener) *SlowConn {
 	return &SlowConn{
 		conn,
 		listener,
-		&slowReader{conn, listener.readbucket},
-		&slowWriter{conn, listener.writebucket},
+		&slowReader{conn, listener.readLimiter},
+		&slowWriter{conn, listener.writeLimiter},
 	}
 }
 
@@ -137,9 +138,9 @@ func (sc *SlowConn) SetWriteDeadline(t time.Time) error {
 
 // SlowListener is a listener that limits global IO over all connections
 type SlowListener struct {
-	listener    net.Listener
-	readbucket  *ratelimit.Bucket
-	writebucket *ratelimit.Bucket
+	listener     net.Listener
+	readLimiter  *rate.Limiter
+	writeLimiter *rate.Limiter
 }
 
 // NewSlowListener creates a SlowListener with specified read and write rates.
@@ -153,9 +154,9 @@ func NewSlowListener(listener net.Listener, readrate uint, writerate uint) net.L
 		writerate = MaxRate
 	}
 	return &SlowListener{
-		listener:    listener,
-		readbucket:  ratelimit.NewBucketWithRate(float64(readrate), capacity),
-		writebucket: ratelimit.NewBucketWithRate(float64(writerate), capacity),
+		listener:     listener,
+		readLimiter:  rate.NewLimiter(rate.Limit(readrate), int(capacity)),
+		writeLimiter: rate.NewLimiter(rate.Limit(writerate), int(capacity)),
 	}
 }
 
