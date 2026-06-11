@@ -25,7 +25,7 @@ func TestRouteWatch(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	defer os.RemoveAll(tmpFolder)
+	defer os.RemoveAll(tmpFolder) //nolint:errcheck
 
 	// Ensure that using . for the path works:
 	if err := os.Chdir(tmpFolder); err != nil {

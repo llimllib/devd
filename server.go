@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/goji/httpauth"
 

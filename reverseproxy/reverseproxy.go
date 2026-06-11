@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/llimllib/devd/inject"
 	"github.com/cortesi/termlog"
@@ -168,7 +168,7 @@ func (p *ReverseProxy) ServeHTTPContext(
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if req.ContentLength > 0 {
 		log.Say(fmt.Sprintf("%s uploaded", humanize.Bytes(uint64(req.ContentLength))))
 	}
