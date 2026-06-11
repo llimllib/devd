@@ -3,7 +3,6 @@ module github.com/llimllib/devd
 go 1.25.0
 
 require (
-	github.com/GeertJohan/go.rice v1.0.3
 	github.com/cortesi/moddwatch v0.1.0
 	github.com/cortesi/termlog v0.0.0-20250523085554-f86697764bb0
 	github.com/dustin/go-humanize v1.0.1
@@ -21,7 +20,6 @@ require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
-	github.com/daaku/go.zipexe v1.0.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect

@@ -4,10 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/GeertJohan/go.rice"
-	"github.com/llimllib/devd/inject"
-	"github.com/llimllib/devd/ricetemp"
 	"github.com/cortesi/termlog"
+	"github.com/llimllib/devd/inject"
+	"github.com/llimllib/devd/templates"
 )
 
 var formatURLTests = []struct {
@@ -53,11 +52,11 @@ func TestDevdRouteHandler(t *testing.T) {
 	logger := termlog.NewLog()
 	logger.Quiet()
 	r := Route{"", "/", fsEndpoint("./testdata")}
-	templates := ricetemp.MustMakeTemplates(rice.MustFindBox("templates"))
+	tmpls := templates.MustMakeTemplates()
 	ci := inject.CopyInject{}
 
 	devd := Devd{LivereloadRoutes: true}
-	h := devd.WrapHandler(logger, r.Endpoint.Handler("", templates, ci))
+	h := devd.WrapHandler(logger, r.Endpoint.Handler("", tmpls, ci))
 	ht := handlerTester{t, h}
 
 	AssertCode(t, ht.Request("GET", "/", nil), 200)
@@ -66,14 +65,14 @@ func TestDevdRouteHandler(t *testing.T) {
 func TestDevdHandler(t *testing.T) {
 	logger := termlog.NewLog()
 	logger.Quiet()
-	templates := ricetemp.MustMakeTemplates(rice.MustFindBox("templates"))
+	tmpls := templates.MustMakeTemplates()
 
 	devd := Devd{LivereloadRoutes: true, WatchPaths: []string{"./"}}
 	err := devd.AddRoutes([]string{"./"}, []string{})
 	if err != nil {
 		t.Error(err)
 	}
-	h, err := devd.Router(logger, templates)
+	h, err := devd.Router(logger, tmpls)
 	if err != nil {
 		t.Error(err)
 	}
