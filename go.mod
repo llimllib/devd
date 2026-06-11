@@ -12,12 +12,9 @@ require (
 	github.com/juju/ratelimit v1.0.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/toqueteos/webbrowser v1.2.1
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
 require (
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
-	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
