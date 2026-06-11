@@ -1,251 +1,130 @@
-// Package reverseproxy is a reverse proxy implementation based on the built-in
-// httuptil.Reverseproxy. Extensions include better logging and support for
-// injection.
+// Package reverseproxy provides a reverse proxy that wraps the standard
+// library's httputil.ReverseProxy with support for content injection (e.g.
+// livereload scripts) and contextual logging via termlog.
 package reverseproxy
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
-	"strings"
-	"sync"
 	"time"
 
-	"context"
-
 	"github.com/cortesi/termlog"
-	humanize "github.com/dustin/go-humanize"
 	"github.com/llimllib/devd/inject"
 )
 
-// onExitFlushLoop is a callback set by tests to detect the state of the
-// flushLoop() goroutine.
-var onExitFlushLoop func()
+// NewSingleHostReverseProxy returns an httputil.ReverseProxy that forwards
+// requests to target, with content injection controlled by ci.
+func NewSingleHostReverseProxy(target *url.URL, ci inject.CopyInject) *httputil.ReverseProxy {
+	rp := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			// SetURL handles scheme, host, path joining, and query
+			// merging (same logic as the old Director).
+			pr.SetURL(target)
+			pr.Out.Host = target.Host
 
-// ReverseProxy is an HTTP Handler that takes an incoming request and
-// sends it to another server, proxying the response back to the
-// client.
-type ReverseProxy struct {
-	// Director must be a function which modifies
-	// the request into a new request to be sent
-	// using Transport. Its response is then copied
-	// back to the original client unmodified.
-	Director func(*http.Request)
-
-	// The transport used to perform proxy requests.
-	// If nil, http.DefaultTransport is used.
-	Transport http.RoundTripper
-
-	// FlushInterval specifies the flush interval
-	// to flush to the client while copying the
-	// response body.
-	// If zero, no periodic flushing is done.
-	FlushInterval time.Duration
-
-	Inject inject.CopyInject
-}
-
-func singleJoiningSlash(a, b string) string {
-	if b == "" {
-		return a
-	}
-
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
-}
-
-// NewSingleHostReverseProxy returns a new ReverseProxy that rewrites
-// URLs to the scheme, host, and base path provided in target. If the
-// target's path is "/base" and the incoming request was for "/dir",
-// the target request will be for /base/dir.
-func NewSingleHostReverseProxy(target *url.URL, ci inject.CopyInject) *ReverseProxy {
-	targetQuery := target.RawQuery
-	director := func(req *http.Request) {
-		req.URL.Host = target.Host
-		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
-		if req.Header.Get("X-Forwarded-Host") == "" {
-			req.Header.Set("X-Forwarded-Host", req.Host)
-		}
-		if req.Header.Get("X-Forwarded-Proto") == "" {
-			req.Header.Set("X-Forwarded-Proto", req.URL.Scheme)
-		}
-		req.URL.Scheme = target.Scheme
-
-		// Set "identity"-only content encoding, in order for injector to
-		// work on text response
-		req.Header.Set("Accept-Encoding", "identity")
-
-		req.Host = req.URL.Host
-		if targetQuery == "" || req.URL.RawQuery == "" {
-			req.URL.RawQuery = targetQuery + req.URL.RawQuery
-		} else {
-			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
-		}
-	}
-	return &ReverseProxy{Director: director, Inject: ci}
-}
-
-func copyHeader(dst, src http.Header) {
-	for k, vv := range src {
-		for _, v := range vv {
-			dst.Add(k, v)
-		}
-	}
-}
-
-// Hop-by-hop headers. These are removed when sent to the backend.
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-var hopHeaders = []string{
-	"Connection",
-	"Keep-Alive",
-	"Proxy-Authenticate",
-	"Proxy-Authorization",
-	"Te", // canonicalized version of "TE"
-	"Trailers",
-	"Transfer-Encoding",
-	"Upgrade",
-}
-
-func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	log := termlog.FromContext(ctx)
-	transport := p.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
-
-	outreq := new(http.Request)
-	*outreq = *req // includes shallow copies of maps, but okay
-
-	p.Director(outreq)
-	outreq.Proto = "HTTP/1.1"
-	outreq.ProtoMajor = 1
-	outreq.ProtoMinor = 1
-	outreq.Close = false
-
-	// Remove hop-by-hop headers to the backend.  Especially
-	// important is "Connection" because we want a persistent
-	// connection, regardless of what the client sent to us.  This
-	// is modifying the same underlying map from req (shallow
-	// copied above) so we only copy it if necessary.
-	copiedHeaders := false
-	for _, h := range hopHeaders {
-		if outreq.Header.Get(h) != "" {
-			if !copiedHeaders {
-				outreq.Header = make(http.Header)
-				copyHeader(outreq.Header, req.Header)
-				copiedHeaders = true
+			// Copy inbound X-Forwarded-For so SetXForwarded appends
+			// to existing values (matching the old Director behavior).
+			if prior := pr.In.Header["X-Forwarded-For"]; len(prior) > 0 {
+				pr.Out.Header["X-Forwarded-For"] = prior
 			}
-			outreq.Header.Del(h)
-		}
-	}
+			// SetXForwarded sets X-Forwarded-For, -Host, and -Proto.
+			// We call it first for X-Forwarded-For, then override
+			// -Host and -Proto to preserve inbound values.
+			pr.SetXForwarded()
 
-	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		// If we aren't the first proxy retain prior
-		// X-Forwarded-For information as a comma+space
-		// separated list and fold multiple headers into one.
-		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
-			clientIP = strings.Join(prior, ", ") + ", " + clientIP
-		}
-		outreq.Header.Set("X-Forwarded-For", clientIP)
-	}
-
-	res, err := transport.RoundTrip(outreq)
-	if err != nil {
-		log.Shout("reverse proxy error: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer res.Body.Close() //nolint:errcheck
-	if req.ContentLength > 0 {
-		log.Say(fmt.Sprintf("%s uploaded", humanize.Bytes(uint64(req.ContentLength))))
-	}
-
-	inject, err := p.Inject.Sniff(res.Body, res.Header.Get("Content-Type"))
-	if err != nil {
-		log.Shout("reverse proxy error: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if inject.Found() {
-		cl, err := strconv.ParseInt(res.Header.Get("Content-Length"), 10, 32)
-		if err == nil {
-			cl = cl + int64(inject.Extra())
-			res.Header.Set("Content-Length", strconv.FormatInt(cl, 10))
-		}
-	}
-	copyHeader(rw.Header(), res.Header)
-	rw.WriteHeader(res.StatusCode)
-	p.copyResponse(ctx, rw, inject)
-}
-
-func (p *ReverseProxy) copyResponse(ctx context.Context, dst io.Writer, inject inject.Injector) {
-	log := termlog.FromContext(ctx)
-	if p.FlushInterval != 0 {
-		if wf, ok := dst.(writeFlusher); ok {
-			mlw := &maxLatencyWriter{
-				dst:     wf,
-				latency: p.FlushInterval,
-				done:    make(chan bool),
+			// Preserve inbound X-Forwarded-Host/Proto if present;
+			// otherwise use the original client request values.
+			if fh := pr.In.Header.Get("X-Forwarded-Host"); fh != "" {
+				pr.Out.Header.Set("X-Forwarded-Host", fh)
+			} else {
+				pr.Out.Header.Set("X-Forwarded-Host", pr.In.Host)
 			}
-			go mlw.flushLoop()
-			defer mlw.stop()
-			dst = mlw
-		}
-	}
-	_, err := inject.Copy(dst)
-	if err != nil {
-		log.Shout("Error forwarding data: %s", err)
-	}
-}
-
-type writeFlusher interface {
-	io.Writer
-	http.Flusher
-}
-
-type maxLatencyWriter struct {
-	sync.Mutex // protects Write + Flush
-
-	dst     writeFlusher
-	latency time.Duration
-
-	done chan bool
-}
-
-func (m *maxLatencyWriter) Write(p []byte) (int, error) {
-	m.Lock()
-	defer m.Unlock()
-	return m.dst.Write(p)
-}
-
-func (m *maxLatencyWriter) flushLoop() {
-	t := time.NewTicker(m.latency)
-	defer t.Stop()
-	for {
-		select {
-		case <-m.done:
-			if onExitFlushLoop != nil {
-				onExitFlushLoop()
+			if fp := pr.In.Header.Get("X-Forwarded-Proto"); fp != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", fp)
+			} else if pr.In.URL.Scheme != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", pr.In.URL.Scheme)
 			}
-			return
-		case <-t.C:
-			m.Lock()
-			m.dst.Flush()
-			m.Unlock()
-		}
+
+			// Set "identity"-only content encoding so the injector can
+			// work on the uncompressed text response.
+			pr.Out.Header.Set("Accept-Encoding", "identity")
+		},
+
+		ModifyResponse: func(res *http.Response) error {
+			inj, err := ci.Sniff(res.Body, res.Header.Get("Content-Type"))
+			if err != nil {
+				return fmt.Errorf("inject sniff: %w", err)
+			}
+
+			if inj.Found() {
+				if cl := res.Header.Get("Content-Length"); cl != "" {
+					n, err := strconv.ParseInt(cl, 10, 64)
+					if err == nil {
+						res.Header.Set("Content-Length", strconv.FormatInt(n+int64(inj.Extra()), 10))
+						res.ContentLength = n + int64(inj.Extra())
+					}
+				}
+			}
+
+			// Replace the body with one that reads through the injector.
+			origBody := res.Body
+			res.Body = &injectReadCloser{inj: inj, origBody: origBody}
+			return nil
+		},
+
+		FlushInterval: 200 * time.Millisecond,
+
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+
+		ErrorHandler: func(rw http.ResponseWriter, req *http.Request, err error) {
+			ctx := req.Context()
+			log := termlog.FromContext(ctx)
+			log.Shout("reverse proxy error: %v", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+		},
 	}
+
+	return rp
 }
 
-func (m *maxLatencyWriter) stop() { m.done <- true }
+// injectReadCloser is an io.ReadCloser that reads from an inject.Injector
+// using an io.Pipe to bridge the Copy(Writer) API to a Read API.
+type injectReadCloser struct {
+	inj      inject.Injector
+	origBody io.ReadCloser
+	pr       *io.PipeReader
+	pw       *io.PipeWriter
+	started  bool
+}
+
+func (irc *injectReadCloser) Read(p []byte) (int, error) {
+	if !irc.started {
+		irc.pr, irc.pw = io.Pipe()
+		irc.started = true
+		go func() {
+			_, err := irc.inj.Copy(irc.pw)
+			irc.pw.CloseWithError(err) //nolint:errcheck
+		}()
+	}
+	return irc.pr.Read(p)
+}
+
+func (irc *injectReadCloser) Close() error {
+	var err error
+	if irc.pr != nil {
+		err = irc.pr.Close()
+	}
+	if irc.origBody != nil {
+		if cerr := irc.origBody.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}
+	return err
+}

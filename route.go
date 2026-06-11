@@ -1,13 +1,11 @@
 package devd
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/llimllib/devd/fileserver"
 	"github.com/llimllib/devd/inject"
@@ -28,10 +26,6 @@ type forwardEndpoint url.URL
 func (ep forwardEndpoint) Handler(prefix string, templates *template.Template, ci inject.CopyInject) http.Handler {
 	u := url.URL(ep)
 	rp := reverseproxy.NewSingleHostReverseProxy(&u, ci)
-	rp.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	rp.FlushInterval = 200 * time.Millisecond
 	return http.StripPrefix(prefix, rp)
 }
 

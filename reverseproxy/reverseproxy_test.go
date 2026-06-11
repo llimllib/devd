@@ -1,19 +1,14 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Reverse proxy tests.
-
 package reverseproxy
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/llimllib/devd/inject"
 )
@@ -39,7 +34,7 @@ func TestReverseProxy(t *testing.T) {
 		}
 		if acceptEncoding := r.Header.Get("Accept-Encoding"); acceptEncoding != "identity" {
 			t.Errorf(
-				"backend got unexpected  or no Accept-Encoding header: %q, expected \"identity\"",
+				"backend got unexpected or no Accept-Encoding header: %q, expected \"identity\"",
 				acceptEncoding,
 			)
 		}
@@ -184,11 +179,6 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	}
 
 	proxyHandler := NewSingleHostReverseProxy(backendURL, inject.CopyInject{})
-	proxyHandler.FlushInterval = time.Microsecond
-
-	done := make(chan bool)
-	onExitFlushLoop = func() { done <- true }
-	defer func() { onExitFlushLoop = nil }()
 
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
@@ -203,11 +193,203 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
 	}
+}
 
-	select {
-	case <-done:
-		// OK
-	case <-time.After(5 * time.Second):
-		t.Error("maxLatencyWriter flushLoop() never exited")
+func TestInjection(t *testing.T) {
+	ci := inject.CopyInject{
+		Within:      1024,
+		ContentType: "text/html",
+		Marker:      regexp.MustCompile(`</head>`),
+		Payload:     []byte(`<script src="/injected.js"></script>`),
+	}
+
+	const backendBody = `<html><head><title>Test</title></head><body>Hello</body></html>`
+	const expectedBody = `<html><head><title>Test</title><script src="/injected.js"></script></head><body>Hello</body></html>`
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(backendBody)))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(backendBody))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL)
+	proxyHandler := NewSingleHostReverseProxy(backendURL, ci)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != expectedBody {
+		t.Errorf("got body %q; expected %q", string(body), expectedBody)
+	}
+
+	// Content-Length should be adjusted for the injected payload
+	if res.ContentLength != int64(len(expectedBody)) {
+		t.Errorf("got Content-Length %d; expected %d", res.ContentLength, len(expectedBody))
+	}
+}
+
+func TestInjectionNoMatch(t *testing.T) {
+	ci := inject.CopyInject{
+		Within:      1024,
+		ContentType: "text/html",
+		Marker:      regexp.MustCompile(`</head>`),
+		Payload:     []byte(`<script src="/injected.js"></script>`),
+	}
+
+	const backendBody = `{"key": "value"}`
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(backendBody))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL)
+	proxyHandler := NewSingleHostReverseProxy(backendURL, ci)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != backendBody {
+		t.Errorf("got body %q; expected %q (no injection for non-HTML)", string(body), backendBody)
+	}
+}
+
+func TestInjectionLargeBody(t *testing.T) {
+	ci := inject.CopyInject{
+		Within:      64,
+		ContentType: "text/html",
+		Marker:      regexp.MustCompile(`</head>`),
+		Payload:     []byte(`<script>injected</script>`),
+	}
+
+	// Marker is within the sniff window, but body extends well beyond it
+	head := `<html><head></head><body>`
+	tail := strings.Repeat("x", 4096) + `</body></html>`
+	backendBody := head + tail
+	expectedBody := `<html><head><script>injected</script></head><body>` + tail
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(backendBody))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL)
+	proxyHandler := NewSingleHostReverseProxy(backendURL, ci)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != expectedBody {
+		t.Errorf("body length %d; expected %d", len(body), len(expectedBody))
+		if len(body) < 200 && len(expectedBody) < 200 {
+			t.Errorf("got %q; expected %q", string(body), expectedBody)
+		}
+	}
+}
+
+func TestForwardedHeaders(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Got-Forwarded-Host", r.Header.Get("X-Forwarded-Host"))
+		w.Header().Set("X-Got-Forwarded-Proto", r.Header.Get("X-Forwarded-Proto"))
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL)
+	proxyHandler := NewSingleHostReverseProxy(backendURL, inject.CopyInject{})
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	// Without pre-existing forwarded headers, the proxy should set them
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Host = "myapp.example.com"
+	req.Close = true
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close() //nolint:errcheck
+
+	if got := res.Header.Get("X-Got-Forwarded-Host"); got != "myapp.example.com" {
+		t.Errorf("X-Forwarded-Host = %q; want %q", got, "myapp.example.com")
+	}
+
+	// With pre-existing X-Forwarded-Host, the proxy should preserve it
+	req2, _ := http.NewRequest("GET", frontend.URL, nil)
+	req2.Header.Set("X-Forwarded-Host", "original.example.com")
+	req2.Close = true
+	res2, err := http.DefaultClient.Do(req2)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res2.Body.Close() //nolint:errcheck
+
+	if got := res2.Header.Get("X-Got-Forwarded-Host"); got != "original.example.com" {
+		t.Errorf("X-Forwarded-Host = %q; want %q", got, "original.example.com")
+	}
+}
+
+func TestBasePath(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Got-Path", r.URL.Path)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL + "/base")
+	proxyHandler := NewSingleHostReverseProxy(backendURL, inject.CopyInject{})
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL+"/dir", nil)
+	req.Close = true
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close() //nolint:errcheck
+
+	if got, want := res.Header.Get("X-Got-Path"), "/base/dir"; got != want {
+		t.Errorf("got path %q; want %q", got, want)
+	}
+}
+
+func TestBackendError(t *testing.T) {
+	// Point at a URL that will refuse connections
+	backendURL, _ := url.Parse("http://127.0.0.1:1")
+	proxyHandler := NewSingleHostReverseProxy(backendURL, inject.CopyInject{})
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close() //nolint:errcheck
+
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Errorf("got status %d; want %d", res.StatusCode, http.StatusInternalServerError)
 	}
 }
