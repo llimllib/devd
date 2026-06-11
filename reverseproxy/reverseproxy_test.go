@@ -210,7 +210,7 @@ func TestInjection(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(backendBody)))
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(backendBody))
+		_, _ = w.Write([]byte(backendBody))
 	}))
 	defer backend.Close()
 
@@ -223,7 +223,7 @@ func TestInjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != expectedBody {
@@ -248,7 +248,7 @@ func TestInjectionNoMatch(t *testing.T) {
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(backendBody))
+		_, _ = w.Write([]byte(backendBody))
 	}))
 	defer backend.Close()
 
@@ -261,7 +261,7 @@ func TestInjectionNoMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != backendBody {
@@ -285,7 +285,7 @@ func TestInjectionLargeBody(t *testing.T) {
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(backendBody))
+		_, _ = w.Write([]byte(backendBody))
 	}))
 	defer backend.Close()
 
@@ -298,7 +298,7 @@ func TestInjectionLargeBody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != expectedBody {
@@ -313,7 +313,7 @@ func TestForwardedHeaders(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Got-Forwarded-Host", r.Header.Get("X-Forwarded-Host"))
 		w.Header().Set("X-Got-Forwarded-Proto", r.Header.Get("X-Forwarded-Proto"))
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer backend.Close()
 
@@ -330,7 +330,7 @@ func TestForwardedHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	res.Body.Close()
+	res.Body.Close() //nolint:errcheck
 
 	if got := res.Header.Get("X-Got-Forwarded-Host"); got != "myapp.example.com" {
 		t.Errorf("X-Forwarded-Host = %q; want %q", got, "myapp.example.com")
@@ -344,7 +344,7 @@ func TestForwardedHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	res2.Body.Close()
+	res2.Body.Close() //nolint:errcheck
 
 	if got := res2.Header.Get("X-Got-Forwarded-Host"); got != "original.example.com" {
 		t.Errorf("X-Forwarded-Host = %q; want %q", got, "original.example.com")
@@ -354,7 +354,7 @@ func TestForwardedHeaders(t *testing.T) {
 func TestBasePath(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Got-Path", r.URL.Path)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer backend.Close()
 
@@ -369,7 +369,7 @@ func TestBasePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	res.Body.Close()
+	res.Body.Close() //nolint:errcheck
 
 	if got, want := res.Header.Get("X-Got-Path"), "/base/dir"; got != want {
 		t.Errorf("got path %q; want %q", got, want)
@@ -387,7 +387,7 @@ func TestBackendError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	res.Body.Close()
+	res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Errorf("got status %d; want %d", res.StatusCode, http.StatusInternalServerError)

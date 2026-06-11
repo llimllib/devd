@@ -128,4 +128,3 @@ func (irc *injectReadCloser) Close() error {
 	}
 	return err
 }
-
