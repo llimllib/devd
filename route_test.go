@@ -6,9 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GeertJohan/go.rice"
 	"github.com/llimllib/devd/inject"
-	"github.com/llimllib/devd/ricetemp"
+	"github.com/llimllib/devd/templates"
 )
 
 func tFilesystemEndpoint(s string) *filesystemEndpoint {
@@ -121,16 +120,12 @@ func TestForwardEndpoint(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
-	rb, err := rice.FindBox("templates")
-	if err != nil {
-		t.Error(err)
-	}
-	templates, err := ricetemp.MakeTemplates(rb)
+	tmpls, err := templates.MakeTemplates()
 	if err != nil {
 		panic(err)
 	}
 
-	f.Handler("", templates, inject.CopyInject{})
+	f.Handler("", tmpls, inject.CopyInject{})
 
 	f, err = newForwardEndpoint("%")
 	if err == nil {
@@ -161,16 +156,12 @@ func TestRouteHandler(t *testing.T) {
 			)
 		}
 
-		rb, err := rice.FindBox("templates")
-		if err != nil {
-			t.Error(err)
-		}
-		templates, err := ricetemp.MakeTemplates(rb)
+		tmpls, err := templates.MakeTemplates()
 		if err != nil {
 			panic(err)
 		}
 
-		r.Endpoint.Handler("", templates, inject.CopyInject{})
+		r.Endpoint.Handler("", tmpls, inject.CopyInject{})
 	}
 }
 

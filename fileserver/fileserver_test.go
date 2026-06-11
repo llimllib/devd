@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	rice "github.com/GeertJohan/go.rice"
 	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/inject"
-	"github.com/llimllib/devd/ricetemp"
+
 	"github.com/llimllib/devd/routespec"
+	"github.com/llimllib/devd/templates"
 )
 
 // ServeFile replies to the request with the contents of the named file or directory.
@@ -38,7 +38,7 @@ func ServeFile(w http.ResponseWriter, r *http.Request, name string) {
 		"version",
 		http.Dir(dir),
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}
@@ -160,7 +160,7 @@ func TestFSRedirect(t *testing.T) {
 				"version",
 				http.Dir("."),
 				inject.CopyInject{},
-				ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+				templates.MustMakeTemplates(),
 				[]routespec.RouteSpec{},
 				"",
 			},
@@ -200,7 +200,7 @@ func TestFileServerCleans(t *testing.T) {
 			},
 		},
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}
@@ -242,7 +242,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 		"version",
 		http.Dir(tempDir),
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}
@@ -389,7 +389,7 @@ func TestServeIndexHtml(t *testing.T) {
 		"version",
 		http.Dir("."),
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}
@@ -418,7 +418,7 @@ func TestFileServerZeroByte(t *testing.T) {
 		"version",
 		http.Dir("."),
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}
@@ -513,7 +513,7 @@ func TestNotFoundOverride(t *testing.T) {
 		"version",
 		fsys,
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{
 			{Host: "", Path: "/", Value: "foo.html"},
 		},
@@ -584,7 +584,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 		"version",
 		fsys,
 		inject.CopyInject{},
-		ricetemp.MustMakeTemplates(rice.MustFindBox("../templates")),
+		templates.MustMakeTemplates(),
 		[]routespec.RouteSpec{},
 		"",
 	}

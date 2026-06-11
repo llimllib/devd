@@ -15,17 +15,17 @@ import (
 
 	"golang.org/x/net/context"
 
-	rice "github.com/GeertJohan/go.rice"
 	"github.com/goji/httpauth"
 
 	"github.com/cortesi/termlog"
 	"github.com/llimllib/devd/httpctx"
 	"github.com/llimllib/devd/inject"
 	"github.com/llimllib/devd/livereload"
-	"github.com/llimllib/devd/ricetemp"
 	"github.com/llimllib/devd/slowdown"
+	"github.com/llimllib/devd/templates"
 	"github.com/llimllib/devd/timer"
 )
+
 
 const (
 	// Version is the current version of devd
@@ -341,7 +341,7 @@ func (dd *Devd) Router(logger termlog.TermLog, templates *template.Template) (ht
 // Serve starts the devd server. The callback is called with the serving URL
 // just before service starts.
 func (dd *Devd) Serve(address string, port int, certFile string, logger termlog.TermLog, callback func(string)) error {
-	templates, err := ricetemp.MakeTemplates(rice.MustFindBox("templates"))
+	templates, err := templates.MakeTemplates()
 	if err != nil {
 		return fmt.Errorf("error loading templates: %s", err)
 	}

@@ -3,16 +3,18 @@
 package livereload
 
 import (
+	"embed"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/GeertJohan/go.rice"
 	"github.com/llimllib/devd/inject"
 	"github.com/cortesi/termlog"
 	"github.com/gorilla/websocket"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 // Reloader triggers a reload
 type Reloader interface {
@@ -130,8 +132,12 @@ func (s *Server) Watch(ch chan []string) {
 // ServeScript is a handler function that serves the livereload JavaScript file
 func (s *Server) ServeScript(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "application/javascript")
-	clientBox := rice.MustFindBox("static")
-	_, err := rw.Write(clientBox.MustBytes("client.js"))
+	data, err := staticFS.ReadFile("static/client.js")
+	if err != nil {
+		s.logger.Warn("Error reading livereload script: %s", err)
+		return
+	}
+	_, err = rw.Write(data)
 	if err != nil {
 		s.logger.Warn("Error serving livereload script: %s", err)
 	}
