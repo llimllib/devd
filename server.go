@@ -104,7 +104,7 @@ func formatURL(tls bool, httpIP string, port int) string {
 	}
 	host := httpIP
 	if httpIP == "0.0.0.0" || httpIP == "127.0.0.1" {
-		host = "devd.io"
+		host = "localhost"
 	}
 	if port == 443 && tls {
 		return fmt.Sprintf("https://%s", host)

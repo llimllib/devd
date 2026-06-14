@@ -64,6 +64,11 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
+if ! make test ; then
+    echo "Error: tests failed"
+    exit 1
+fi
+
 # Create and push tag
 git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
 git push origin "$NEW_VERSION"
