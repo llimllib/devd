@@ -8,10 +8,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v7.0.1
       - run: go test ./...
 
       - name: golangci-lint
