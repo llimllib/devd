@@ -3,6 +3,9 @@
 * Improves CORS support. Allows connections with credentials that were
   previously refused. See
   <https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS/Errors/CORSNotSupportingCredentials>
+* macOS release builds use cgo so livereload watches files with FSEvents
+  instead of kqueue, fixing "too many open files" errors on large trees like
+  `node_modules`.
 
 # v0.9: 21 January 2019
 

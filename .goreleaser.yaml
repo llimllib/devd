@@ -7,13 +7,26 @@ before:
     - go test ./...
 
 builds:
-  - main: ./cmd/devd
+  - id: devd
+    main: ./cmd/devd
     env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - darwin
       - windows
+    goarch:
+      - amd64
+      - arm64
+  # darwin needs cgo so that file watching uses FSEvents. Without it, notify
+  # falls back to kqueue, which opens a file descriptor per watched file and
+  # fails with "too many open files" on large trees. This must be built on a
+  # macOS host.
+  - id: devd-darwin
+    main: ./cmd/devd
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
     goarch:
       - amd64
       - arm64

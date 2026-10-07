@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # macOS so the darwin builds can use cgo (see .goreleaser.yaml)
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
